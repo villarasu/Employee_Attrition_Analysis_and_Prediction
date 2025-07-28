@@ -1,5 +1,5 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st 
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
@@ -8,31 +8,47 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
 from imblearn.over_sampling import SMOTE
 
-# --- Page Configuration ---
+##  Page Configuration ##
+
 st.set_page_config(
     page_title="🌟 Employee Attrition Analyzer",
     layout="wide",
     page_icon="📊"
 )
 
-# --- Custom Styling ---
+## Stylish Theme & Background ##
+
 st.markdown("""
     <style>
-    .main {background-color: #f4f4f4;}
-    .block-container {padding-top: 2rem; padding-bottom: 2rem;}
-    .sidebar .sidebar-content {background-color: #f0f2f6;}
-    h1, h2, h3, h4, h5, h6 {color: #333333;}
+    body {
+        background: linear-gradient(to right, #f0f2f5, #e0eafc);
+    }
+    .main {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #1a1a1a;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Sidebar Navigation ---
-st.sidebar.title("📁 Navigation")
-page = st.sidebar.radio("Go to", ["🏠 Home", "🔍 Predict Attrition", "📊 EDA"])
+##  Sidebar Navigation ##
 
-# --- Sidebar File Upload ---
+st.sidebar.title(" 📡 Explore")
+page = st.sidebar.radio("Go to", ["🏠 Home", "🔍 Predict Attrition", "📊 EDA", "📚 About Me"])
+
+## Sidebar File Upload ##
+
 uploaded_file = st.sidebar.file_uploader("📂 Upload your CSV", type=["csv"])
 
-# --- Load Data Function ---
+## Load Data Function ##
+
 @st.cache_data
 def load_data(file):
     df = pd.read_csv(file)
@@ -40,11 +56,29 @@ def load_data(file):
     df.drop(columns=[col for col in drop_cols if col in df.columns], inplace=True)
     return df
 
-# --- Prediction and EDA Logic ---
-if uploaded_file:
+##  Main Logic ##
+
+if page == "📚 About Me":
+    st.title("📚 About Me")
+    st.image( "img.png", caption=" Villarasu - Data Analyst", width=150)
+    st.markdown("""
+                            ### 👨‍💻 Developer: Villarasu_siva
+    - 🔬 **Project**: Employee Attrition Analysis & Prediction  
+    - 🧠 **Skills**: Python, Streamlit, Machine Learning, EDA, SMOTE, Random Forest  
+    - 📊 **Goal**: Help companies understand why employees leave and predict future attrition  
+    - 🛠️ **Tools**: Streamlit, pandas, scikit-learn, seaborn, matplotlib  
+    - 🌐 **Contact**: [LinkedIn](https://www.linkedin.com/in/villarasu-siva-9780a8288/) | [GitHub](https://github.com/villarasu?tab=repositories)
+
+    ---
+    **Thank you for visiting the Employee Attrition Analyzer App!** 😊  
+    """)
+   
+
+elif uploaded_file:
     df = load_data(uploaded_file)
 
-    # Encode Categorical Variables
+    ##  Label Encoding ##
+
     label_encoders = {}
     label_mappings = {}
     for col in df.select_dtypes(include='object'):
@@ -53,36 +87,41 @@ if uploaded_file:
         label_encoders[col] = le
         label_mappings[col] = dict(zip(le.classes_, le.transform(le.classes_)))
 
-    # Features and Target
+    ##  Target & Features ##
+
     X = df.drop('Attrition', axis=1)
     y = df['Attrition']
 
-    # SMOTE to balance data
+    ## SMOTE fixes the class imbalance ##
+
     sm = SMOTE(random_state=42)
     X_resampled, y_resampled = sm.fit_resample(X, y)
 
-    # Train-Test Split
+    ## Train-Test Split ##
+
     X_train, X_test, y_train, y_test = train_test_split(
         X_resampled, y_resampled, test_size=0.2, random_state=42)
 
-    # Train Model
+    ##  Model ##
+
     model = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
     model.fit(X_train, y_train)
 
-    # Model Evaluation
+    ##  Evaluation ##
+
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
     report = classification_report(y_test, y_pred, target_names=["Stay", "Leave"])
 
-    # --- Page Routing ---
     if page == "🏠 Home":
         st.title("🌟 Welcome to the Employee Attrition Analyzer")
         st.markdown("""
         This dashboard allows you to:
-        - 🔍 Predict employee attrition based on various factors
-        - 📊 Explore insightful visualizations about attrition trends
-        
-        **Upload your dataset to get started!**
+        - 🔍 Predict employee attrition
+        - 📊 Explore attrition insights with EDA  
+        - 📚 About Me
+                    
+        **📂 Upload your CSV to begin!**
         """)
 
     elif page == "🔍 Predict Attrition":
@@ -115,31 +154,65 @@ if uploaded_file:
     elif page == "📊 EDA":
         st.title("📊 Exploratory Data Analysis")
 
-        st.subheader("📋 Dataset Preview")
-        st.dataframe(df.head(10))
+        ##  Metrics ##
 
-        st.subheader("🔢 Attrition Count")
-        fig1, ax1 = plt.subplots(figsize=(3,3))
+        st.subheader("📌 Quick Metrics")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("👥 Total Employees", len(df))
+        col2.metric("🚪 Left", df['Attrition'].sum())
+        col3.metric("📈 Attrition Rate", f"{df['Attrition'].mean() * 100:.2f}%")
 
-        sns.countplot(x='Attrition', data=df, ax=ax1)
-        st.pyplot(fig1)
+        ##  Preview ##
 
-        st.subheader("📉 Age Distribution by Attrition")
-        fig2, ax2 = plt.subplots()
-        sns.boxplot(x='Attrition', y='Age', data=df, ax=ax2)
-        st.pyplot(fig2)
+        with st.expander("🔍 View Raw Dataset"):
+            st.dataframe(df.head(20))
 
-        if 'Department' in df.columns:
-            st.subheader("🏢 Department-wise Attrition")
-            fig3, ax3 = plt.subplots()
-            sns.countplot(x='Department', hue='Attrition', data=df, ax=ax3)
-            st.pyplot(fig3)
+        ## Visual ##
 
-        if 'OverTime' in df.columns:
-            st.subheader("🕒 OverTime vs Attrition")
-            fig4, ax4 = plt.subplots()
-            sns.countplot(x='OverTime', hue='Attrition', data=df, ax=ax4)
-            st.pyplot(fig4)
+        st.subheader("📊 Detailed Visualizations")
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "Attrition Count", "Age vs Attrition", "Department-wise", "OverTime Effect", "Correlation"
+        ])
+
+        with tab1:
+            st.markdown("#### 🔢 Attrition Count")
+            fig1, ax1 = plt.subplots(figsize=(3, 3))
+            sns.countplot(x='Attrition', data=df, palette='Set2', ax=ax1)
+            st.pyplot(fig1)
+
+        with tab2:
+            st.markdown("#### 📉 Age Distribution by Attrition")
+            fig2, ax2 = plt.subplots(figsize=(6, 3))
+            sns.boxplot(x='Attrition', y='Age', data=df, palette='Pastel1', ax=ax2)
+            st.pyplot(fig2)
+
+        with tab3:
+            if 'Department' in df.columns:
+                st.markdown("#### 🏢 Department-wise Attrition")
+                fig3, ax3 = plt.subplots(figsize=(6, 2))
+                sns.countplot(x='Department', hue='Attrition', data=df, palette='coolwarm', ax=ax3)
+                st.pyplot(fig3)
+            else:
+                st.info("⚠️ 'Department' column not found in dataset.")
+
+        with tab4:
+            if 'OverTime' in df.columns:
+                st.markdown("#### 🕒 OverTime vs Attrition")
+                fig4, ax4 = plt.subplots(figsize=(6, 2))
+                sns.countplot(x='OverTime', hue='Attrition', data=df, palette='flare', ax=ax4)
+                st.pyplot(fig4)
+            else:
+                st.info("⚠️ 'OverTime' column not found in dataset.")
+
+        with tab5:
+            st.markdown("#### 🔥 Top Feature Correlations with Attrition")
+            corr = df.corr(numeric_only=True)
+            top_corr = corr['Attrition'].abs().sort_values(ascending=False).head(11).index
+            fig5, ax5 = plt.subplots(figsize=(10, 6))
+            sns.heatmap(df[top_corr].corr(), annot=True, cmap='coolwarm', fmt=".2f", ax=ax5)
+            st.pyplot(fig5)
+        
 
 else:
-    st.warning("📁 Please upload a CSV file to begin.")
+    if page != "📚 About Me":
+        st.warning("📁 Please upload a CSV file to begin.")
