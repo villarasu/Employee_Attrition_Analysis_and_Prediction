@@ -56,7 +56,7 @@ def load_data(file):
     df.drop(columns=[col for col in drop_cols if col in df.columns], inplace=True)
     return df
 
-##  Main Logic ##
+## build project developer ##
 
 if page == "📚 About Me":
     st.title("📚 About Me")
@@ -87,7 +87,7 @@ elif uploaded_file:
         label_encoders[col] = le
         label_mappings[col] = dict(zip(le.classes_, le.transform(le.classes_)))
 
-    ##  Target & Features ##
+    ##  feature & target ##
 
     X = df.drop('Attrition', axis=1)
     y = df['Attrition']
@@ -97,12 +97,12 @@ elif uploaded_file:
     sm = SMOTE(random_state=42)
     X_resampled, y_resampled = sm.fit_resample(X, y)
 
-    ## Train-Test Split ##
+    ## Train-Test Split ## train 80% test 20%
 
     X_train, X_test, y_train, y_test = train_test_split(
         X_resampled, y_resampled, test_size=0.2, random_state=42)
 
-    ##  Model ##
+    ## build  Model ##
 
     model = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
     model.fit(X_train, y_train)
@@ -113,6 +113,8 @@ elif uploaded_file:
     acc = accuracy_score(y_test, y_pred)
     report = classification_report(y_test, y_pred, target_names=["Stay", "Leave"])
 
+    ## streamlit home page ##
+    
     if page == "🏠 Home":
         st.title("🌟 Welcome to the Employee Attrition Analyzer")
         st.markdown("""
@@ -168,11 +170,12 @@ elif uploaded_file:
             st.dataframe(df.head(20))
 
         ## Visual ##
-
+    
         st.subheader("📊 Detailed Visualizations")
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "Attrition Count", "Age vs Attrition", "Department-wise", "OverTime Effect", "Correlation"
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "Attrition Count", "Age vs Attrition", "Department-wise", "OverTime Effect", "Correlation","Monthly income and Job role"
         ])
+        
 
         with tab1:
             st.markdown("#### 🔢 Attrition Count")
@@ -211,8 +214,41 @@ elif uploaded_file:
             fig5, ax5 = plt.subplots(figsize=(10, 6))
             sns.heatmap(df[top_corr].corr(), annot=True, cmap='coolwarm', fmt=".2f", ax=ax5)
             st.pyplot(fig5)
-        
+        with tab6:
+            st.markdown("#### 💰 Monthly Income Distribution by Attrition")
+            if 'MonthlyIncome' in df.columns:
+                fig6, ax6 = plt.subplots(figsize=(6, 3))
+                sns.kdeplot(data=df, x='MonthlyIncome', hue='Attrition', fill=True, common_norm=False, palette='Set1', ax=ax6)
+                st.pyplot(fig6)
+            else:
+                st.info("⚠️ 'MonthlyIncome' column not found.")
 
+            st.markdown("#### 👔 Job Role-wise Attrition")
+            if 'JobRole' in df.columns:
+                fig7, ax7 = plt.subplots(figsize=(8, 3))
+                sns.countplot(x='JobRole', hue='Attrition', data=df, palette='husl', ax=ax7)
+                plt.xticks(rotation=45)
+                st.pyplot(fig7)
+            else:
+                st.info("⚠️ 'JobRole' column not found.")
+
+            st.markdown("#### 🎓 Education Field-wise Attrition")
+            if 'EducationField' in df.columns:
+                fig8, ax8 = plt.subplots(figsize=(8, 3))
+                sns.countplot(x='EducationField', hue='Attrition', data=df, palette='cubehelix', ax=ax8)
+                plt.xticks(rotation=30)
+                st.pyplot(fig8)
+            else:
+                st.info("⚠️ 'EducationField' column not found.")
+
+            st.markdown("#### 📈 Years at Company vs Attrition")
+            if 'YearsAtCompany' in df.columns:
+                fig9, ax9 = plt.subplots(figsize=(6, 3))
+                sns.boxplot(x='Attrition', y='YearsAtCompany', data=df, palette='Accent', ax=ax9)
+                st.pyplot(fig9)
+            else:
+                st.info("⚠️ 'YearsAtCompany' column not found.")
+        
 else:
     if page != "📚 About Me":
         st.warning("📁 Please upload a CSV file to begin.")
