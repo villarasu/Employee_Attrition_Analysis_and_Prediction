@@ -1,3 +1,5 @@
+##1. Imports
+
 import pandas as pd
 import streamlit as st 
 import seaborn as sns
@@ -6,7 +8,8 @@ import os
 import joblib
 from sklearn.metrics import accuracy_score, classification_report
 
-##  Page Configuration ##
+
+## 2. Page Configuration ##
 st.set_page_config(
     page_title="🌟 Employee Attrition Analyzer",
     layout="wide",
@@ -45,12 +48,28 @@ uploaded_file = st.sidebar.file_uploader("📂 Upload your CSV", type=["csv"])
 @st.cache_data
 def load_data(file):
     df = pd.read_csv(file)
-    drop_cols = ['Over18', 'StandardHours', 'EmployeeCount', 'EmployeeNumber']
+    drop_cols = ['Over18', 'StandardHours', 'EmployeeCount']
     df.drop(columns=[col for col in drop_cols if col in df.columns], inplace=True)
     return df
 
+## Load Model & Test Data (once) ##
 MODEL_FILE = "saved_model.pkl"
 ENCODER_FILE = "label_encoders.pkl"
+TEST_DATA_FILE = "employee_attrition_test_data.pkl"
+
+if os.path.exists(MODEL_FILE) and os.path.exists(ENCODER_FILE) and os.path.exists(TEST_DATA_FILE):
+    model = joblib.load(MODEL_FILE)
+    label_encoders = joblib.load(ENCODER_FILE)
+    X_test, y_test = joblib.load(TEST_DATA_FILE)
+
+    # Evaluate model on real test set
+    y_pred_test = model.predict(X_test)
+    acc_test = accuracy_score(y_test, y_pred_test)
+    report_test = classification_report(y_test, y_pred_test, target_names=["Stay", "Leave"])
+else:
+    model = None
+    label_encoders = None
+    X_test, y_test, acc_test, report_test = None, None, None, None, None
 
 ## About Me Page ##
 if page == "📚 About Me":
@@ -70,16 +89,7 @@ if page == "📚 About Me":
 elif uploaded_file:
     df = load_data(uploaded_file)
 
-    ## Load pre-trained model ##
-    if os.path.exists(MODEL_FILE) and os.path.exists(ENCODER_FILE):
-        model = joblib.load(MODEL_FILE)
-        label_encoders = joblib.load(ENCODER_FILE)
-        st.success("✅ Loaded pre-trained model and encoders.")
-    else:
-        st.error("❌ Pre-trained model or encoders not found. Please make sure 'saved_model.pkl' and 'label_encoders.pkl' exist.")
-        st.stop()
-
-    ## Apply label encoding using loaded encoders ##
+    ## Prepare label mappings for predictions ##
     label_mappings = {}
     for col in df.select_dtypes(include='object'):
         if col in label_encoders:
@@ -87,20 +97,13 @@ elif uploaded_file:
             df[col] = le.transform(df[col])
             label_mappings[col] = dict(zip(le.classes_, le.transform(le.classes_)))
 
-    ## Features & target ##
+    ## Features & target from uploaded file ##
     if 'Attrition' in df.columns:
-        X = df.drop('Attrition', axis=1)
-        y = df['Attrition']
-
-        ## Predictions on test data ##
-        y_pred = model.predict(X)
-        acc = accuracy_score(y, y_pred)
-        report = classification_report(y, y_pred, target_names=["Stay", "Leave"])
+        X_upload = df.drop('Attrition', axis=1)
+        y_upload = df['Attrition']
     else:
-        X = df
-        y = None
-        acc = None
-        report = None
+        X_upload = df
+        y_upload = None
 
     ## Home ##
     if page == "🏠 Home":
@@ -116,21 +119,21 @@ elif uploaded_file:
     ## Prediction Page ##
     elif page == "🔍 Predict Attrition":
         st.title("🔍 Employee Attrition Prediction")
-        if acc:
-            st.subheader("📈 Model Performance")
+        if acc_test:
+            st.subheader("📈 Model Performance (Test Set)")
             col1, col2 = st.columns(2)
-            col1.metric("✅ Accuracy", f"{acc * 100:.2f}%")
-            col2.code(report)
+            col1.metric("✅ Accuracy", f"{acc_test * 100:.2f}%")
+            col2.code(report_test)
 
         st.divider()
         st.subheader("🧠 Predict for a New Employee")
         input_data = {}
-        for col in X.columns:
+        for col in X_upload.columns:
             if col in label_mappings:
                 input_data[col] = st.selectbox(f"{col}", list(label_mappings[col].keys()))
                 input_data[col] = label_mappings[col][input_data[col]]
             else:
-                input_data[col] = st.slider(f"{col}", int(X[col].min()), int(X[col].max()), int(X[col].median()))
+                input_data[col] = st.slider(f"{col}", int(X_upload[col].min()), int(X_upload[col].max()), int(X_upload[col].median()))
 
         if st.button("🚀 Predict Now"):
             input_df = pd.DataFrame([input_data])
